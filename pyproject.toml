@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "rinex-api"
+version = "8.0.0"
+description = "rinex API Servisi - Güçlü Cloudflare Bypass ile 8 API"
+authors = ["@rinexdestek"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.31.0"
+cloudscraper = "^1.2.71"
+cfscrape = "^2.1.1"
+brotli = "^1.1.0"
+urllib3 = "^2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.0.0"
+flake8 = "^6.0.0"
+pytest = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+rinex-api = "api:main"

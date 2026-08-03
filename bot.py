@@ -251,9 +251,9 @@ class APIHandler(BaseHTTPRequestHandler):
                         'status_code': result['status_code'],
                         'data': cleaned_data,
                         'response_time': f"{elapsed:.2f}s",
-                        'api_sahibi': '@rinexdestek',
-                        'api_surum': '8.0',
-                        'not': 'BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR'
+                        'premium destek': '@sinopya',
+                        'api_surum': '29.1',
+                        'kanal': '@relaxapiservisi'
                     }
                 except json.JSONDecodeError:
                     response_data = {
@@ -261,9 +261,9 @@ class APIHandler(BaseHTTPRequestHandler):
                         'status_code': result['status_code'],
                         'raw': result['text'][:2000] + ('...' if len(result['text']) > 2000 else ''),
                         'response_time': f"{elapsed:.2f}s",
-                        'api_sahibi': '@rinexdestek',
-                        'api_surum': '8.0',
-                        'not': 'BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR'
+                        'PREMİUM DESTEK': '@sinopya',
+                        'api_surum': '29.1',
+                        'KANAL': '@relaxapiservisi'
                     }
                 
                 self.send_response(200)
@@ -302,7 +302,7 @@ HTML_PAGE = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rinex API Servisi v8.0</title>
+    <title>SİNOPYA SERVİCE</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -488,16 +488,16 @@ HTML_PAGE = '''<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 rinex API Servisi v8.0</h1>
+            <h1>🔍 SİNOPYA APİ SERVİS</h1>
             <div class="badge-container">
-                <span class="badge owner">👤 @rinexdestek</span>
-                <span class="badge version">📦 Sürüm 8.0</span>
-                <span class="badge free">🔓 BEDAVA</span>
+                <span class="badge owner">👤 @sinopya</span>
+                <span class="badge version">📦 api SÜRÜMÜ 29.1</span>
+                <span class="badge free">🔓VİP APİLER İCİN @sinopya </span>
                 <span class="badge bot">🤖 Süper Bot</span>
-                <span class="badge ua">👾 10x User-Agent</span>
+                <span class="badge ua">HIZLI SERVİS</span>
                 <span class="badge fast">⚡ HIZLI</span>
             </div>
-            <div class="warning-box">⚠️ BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR ⚠️</div>
+            <div class="warning-box">📞 APİ KANALI  @relaxapiservisi📞</div>
         </div>
         
         <div class="grid">

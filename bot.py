@@ -8,6 +8,7 @@ import gzip
 import zlib
 import re
 import random
+import html
 
 # ===== EN GÜÇLÜ 10 USER-AGENT =====
 SUPER_USER_AGENTS = [
@@ -75,7 +76,6 @@ def decode_content(content, encoding):
 
 # ===== REKLAM TEMİZLEME =====
 def remove_ads_from_response(data):
-    # Temizlenecek reklam anahtarları
     ads_to_remove = [
         "developer", "version", "api_sahibi", "api_surum", 
         "not", "ApiTelegramKanalı", "ApiSahibi", "ApiTelegramKanal",
@@ -84,12 +84,10 @@ def remove_ads_from_response(data):
     ]
     
     if isinstance(data, dict):
-        # Reklam anahtarlarını sil
         for key in ads_to_remove:
             if key in data:
                 del data[key]
         
-        # İç içe geçmiş verileri temizle
         for key, value in data.items():
             if isinstance(value, dict):
                 data[key] = remove_ads_from_response(value)
@@ -106,7 +104,6 @@ def make_api_request(url, params=None):
     if params is None:
         params = {}
     
-    # Önce cloudscraper dene
     if CLOUDSCRAPER_AVAILABLE:
         try:
             print("⚡ Cloudscraper ile bypass...")
@@ -123,11 +120,9 @@ def make_api_request(url, params=None):
             headers = get_super_headers()
             scraper.headers.update(headers)
             
-            # Challenge çöz
             scraper.get('https://punisherservices.alwaysdata.net', timeout=15)
             time.sleep(1)
             
-            # API isteği
             response = scraper.get(url, params=params, timeout=30)
             
             if response.status_code == 200:
@@ -164,13 +159,11 @@ def make_api_request(url, params=None):
         except Exception as e:
             print(f"⚠️ Cloudscraper hatası: {e}")
     
-    # Normal requests + Güçlü Session
     print("⚡ Session ile bypass...")
     session = requests.Session()
     headers = get_super_headers()
     session.headers.update(headers)
     
-    # Cookie'ler
     session.cookies.set('__cf_bm', str(int(time.time())), domain='punisherservices.alwaysdata.net')
     session.cookies.set('cf_clearance', 'true', domain='punisherservices.alwaysdata.net')
     
@@ -215,13 +208,22 @@ class APIHandler(BaseHTTPRequestHandler):
         params = urllib.parse.parse_qs(parsed.query)
         params = {k: v[0] if v else '' for k, v in params.items()}
         
-        # Ana sayfa
+        # Ana sayfa (Login sayfası)
         if path == '/' or path == '':
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode('utf-8'))
+            self.wfile.write(LOGIN_PAGE.encode('utf-8'))
+            return
+        
+        # Ana API sayfası (giriş sonrası)
+        if path == '/dashboard':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(DASHBOARD_PAGE.encode('utf-8'))
             return
         
         # API proxy
@@ -251,7 +253,7 @@ class APIHandler(BaseHTTPRequestHandler):
                         'status_code': result['status_code'],
                         'data': cleaned_data,
                         'response_time': f"{elapsed:.2f}s",
-                        'premium destek': '@sinopya',
+                        'premium_destek': '@sinopya',
                         'api_surum': '29.1',
                         'kanal': '@relaxapiservisi'
                     }
@@ -261,7 +263,7 @@ class APIHandler(BaseHTTPRequestHandler):
                         'status_code': result['status_code'],
                         'raw': result['text'][:2000] + ('...' if len(result['text']) > 2000 else ''),
                         'response_time': f"{elapsed:.2f}s",
-                        'PREMİUM DESTEK': '@sinopya',
+                        'PREMİUM_DESTEK': '@sinopya',
                         'api_surum': '29.1',
                         'KANAL': '@relaxapiservisi'
                     }
@@ -296,664 +298,505 @@ class APIHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print(f"{time.strftime('%H:%M:%S')} - {format % args}")
 
-# ===== HTML PAGE =====
-HTML_PAGE = '''<!DOCTYPE html>
+# ===== LOGIN PAGE =====
+LOGIN_PAGE = '''<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SİNOPYA SERVİCE</title>
+    <title>SİNOPYA SERVİCE - Giriş</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background: #0a0a0a;
+        }
+        .bg-gif {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyNHJzYnF6YzZrYnVueGxpenhjb21scnBqdzJ4eG9tNDF4ZzVhNHVtcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1aTUTJOn3aavLVC6G1/giphy.gif') center/cover;
+            filter: blur(8px) brightness(0.4);
+            z-index: 0;
+        }
+        .login-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
             padding: 20px;
-            color: #fff;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header {
-            background: rgba(255,255,255,0.05);
+        .login-box {
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            padding: 50px 40px;
+            max-width: 420px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            animation: slideUp 0.8s ease;
         }
-        .header h1 {
-            font-size: 3em;
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        .logo h1 {
+            font-size: 2.2em;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+        .logo p {
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s;
+            outline: none;
+        }
+        .input-group input:focus {
+            border-color: #667eea;
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.1);
+        }
+        .input-group input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+        .btn-login:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px -8px rgba(102, 126, 234, 0.5);
+        }
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+        .footer-text {
+            text-align: center;
+            margin-top: 25px;
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
+        }
+        .footer-text span {
+            color: #667eea;
+        }
+        .warning {
+            text-align: center;
+            margin-top: 15px;
+            color: rgba(255,107,107,0.7);
+            font-size: 13px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gif"></div>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="logo">
+                <h1>🔍 SİNOPYA</h1>
+                <p>API Servisine Hoş Geldiniz</p>
+            </div>
+            <div class="input-group">
+                <label>👤 TELEGRAM KULLANICI ADI</label>
+                <input type="text" id="usernameInput" placeholder="@kullaniciadi" value="@sinopya">
+            </div>
+            <button class="btn-login" onclick="login()">🚀 GİRİŞ YAP</button>
+            <div class="footer-text">
+                <span>🔒</span> Güvenli Bağlantı
+            </div>
+            <div class="warning">
+                ⚠️ BU APİLER BEDAVADIR
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                alert('❌ Lütfen Telegram kullanıcı adınızı girin!');
+                return;
+            }
+            localStorage.setItem('telegram_username', username);
+            window.location.href = '/dashboard';
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+    </script>
+</body>
+</html>'''
+
+# ===== DASHBOARD PAGE =====
+DASHBOARD_PAGE = '''<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SİNOPYA SERVİCE - API</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .bg-gif {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyNHJzYnF6YzZrYnVueGxpenhjb21scnBqdzJ4eG9tNDF4ZzVhNHVtcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1aTUTJOn3aavLVC6G1/giphy.gif') center/cover;
+            filter: blur(6px) brightness(0.3);
+            z-index: 0;
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            font-size: 2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info span {
+            color: rgba(255,255,255,0.7);
+        }
+        .user-info .name {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .btn-logout {
+            padding: 10px 24px;
+            border: 2px solid rgba(255,107,107,0.3);
+            border-radius: 12px;
+            background: transparent;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-logout:hover {
+            background: rgba(255,107,107,0.1);
+            border-color: #ff6b6b;
+        }
         .badge-container {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin: 15px 0;
+            margin: 10px 0;
         }
         .badge {
             padding: 8px 20px;
             border-radius: 50px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .badge.owner { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; }
         .badge.version { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; }
         .badge.free { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; color: #000; }
-        .badge.bot { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; color: #000; }
-        .badge.ua { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); border: none; color: #000; }
         .badge.fast { background: linear-gradient(135deg, #fccb90 0%, #d57eeb 100%); border: none; color: #000; }
+        .badge.ua { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); border: none; color: #000; }
         .warning-box {
-            margin-top: 20px;
-            padding: 20px;
-            background: rgba(255, 107, 107, 0.15);
-            border: 2px solid #ff6b6b;
+            margin-top: 15px;
+            padding: 15px 25px;
+            background: rgba(255, 107, 107, 0.12);
+            border: 2px solid rgba(255,107,107,0.3);
             border-radius: 12px;
             text-align: center;
             font-weight: bold;
             animation: pulse 2s infinite;
+            font-size: 14px;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+        .system-start {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeOut 0.8s ease forwards 3.5s;
+            pointer-events: none;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        .system-start h1 {
+            font-size: 4em;
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 60px rgba(67, 233, 123, 0.3);
+            letter-spacing: 5px;
+        }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
         .card {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.04);
             backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 18px;
+            padding: 22px 25px;
+            border: 1px solid rgba(255,255,255,0.06);
             transition: all 0.3s ease;
         }
         .card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateY(-3px);
+            border-color: rgba(102, 126, 234, 0.3);
+            background: rgba(255,255,255,0.06);
         }
-        .card h3 { font-size: 1.2em; color: #667eea; margin-bottom: 10px; }
-        .endpoint {
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
+        .card h3 {
+            font-size: 1.1em;
+            color: #667eea;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card .endpoint {
+            background: rgba(0,0,0,0.4);
+            padding: 10px 14px;
+            border-radius: 10px;
             font-family: 'Courier New', monospace;
-            font-size: 13px;
-            margin: 10px 0;
+            font-size: 12px;
+            margin: 8px 0;
             word-break: break-all;
             color: #4facfe;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .params {
-            color: rgba(255,255,255,0.7);
-            font-size: 13px;
-            margin: 8px 0;
-            padding: 8px;
+        .card .params {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            margin: 6px 0;
+            padding: 6px 10px;
             background: rgba(255,255,255,0.03);
             border-radius: 6px;
         }
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin: 15px 0;
+        .card .params strong {
+            color: #fccb90;
         }
-        .input-group input {
-            padding: 12px 16px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .input-group input:focus {
-            border-color: #667eea;
-            outline: none;
-            background: rgba(255,255,255,0.08);
-        }
-        .input-group input::placeholder { color: rgba(255,255,255,0.4); }
-        .btn {
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 20px -8px rgba(102, 126, 234, 0.4);
-        }
-        .response {
-            background: rgba(0,0,0,0.4);
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 15px;
-            max-height: 400px;
-            overflow: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            border: 1px solid rgba(255,255,255,0.05);
-            color: #a8d8ea;
-            display: none;
-        }
-        .response.active { display: block; }
-        .response.success { border-left: 4px solid #43e97b; }
-        .response.error { border-left: 4px solid #ff6b6b; }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 15px;
-            color: #667eea;
-            font-weight: bold;
-        }
-        .loading.active { display: block; }
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(102, 126, 234, 0.3);
-            border-radius: 50%;
-            border-top-color: #667eea;
-            animation: spin 0.8s ease-in-out infinite;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .footer {
             text-align: center;
-            padding: 40px 20px;
+            padding: 30px 20px;
             border-top: 1px solid rgba(255,255,255,0.05);
-            margin-top: 30px;
+            margin-top: 20px;
+        }
+        .footer p {
+            color: rgba(255,255,255,0.4);
+            font-size: 13px;
+        }
+        .footer .highlight {
+            color: #ff6b6b;
+            font-weight: bold;
         }
         @media (max-width: 768px) {
-            .header h1 { font-size: 2em; }
+            .header h1 { font-size: 1.5em; }
+            .header { padding: 20px; flex-direction: column; text-align: center; }
             .grid { grid-template-columns: 1fr; }
+            .system-start h1 { font-size: 2.5em; }
         }
     </style>
 </head>
 <body>
+    <div class="system-start">
+        <h1>⚡ SYSTEM BAŞLATİLDİ</h1>
+    </div>
+
+    <div class="bg-gif"></div>
+    
     <div class="container">
         <div class="header">
-            <h1>🔍 SİNOPYA APİ SERVİS</h1>
-            <div class="badge-container">
-                <span class="badge owner">👤 @sinopya</span>
-                <span class="badge version">📦 api SÜRÜMÜ 29.1</span>
-                <span class="badge free">🔓VİP APİLER İCİN @sinopya </span>
-                <span class="badge bot">🤖 Süper Bot</span>
-                <span class="badge ua">HIZLI SERVİS</span>
-                <span class="badge fast">⚡ HIZLI</span>
-            </div>
-            <div class="warning-box">📞 APİ KANALI  @relaxapiservisi📞</div>
-        </div>
-        
-        <div class="grid">
-            <div class="card">
-                <h3>🔍 TC Sorgulama</h3>
-                <div class="endpoint">GET /api/tc.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="tcInput" placeholder="TC Kimlik No girin" value="11111111110">
+            <div>
+                <h1>🔍 SİNOPYA API</h1>
+                <div class="badge-container">
+                    <span class="badge owner">👤 @sinopya</span>
+                    <span class="badge version">📦 v29.1</span>
+                    <span class="badge free">🔓 VİP @sinopya</span>
+                    <span class="badge ua">🤖 Süper Bot</span>
+                    <span class="badge fast">⚡ HIZLI</span>
                 </div>
-                <button class="btn" onclick="callAPI('tc')">🔍 Sorgula</button>
-                <div id="tcLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="tcResponse" class="response"></div>
             </div>
-            
-            <div class="card">
-                <h3>🔍 TC Pro Sorgulama</h3>
-                <div class="endpoint">GET /api/tcpro.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="tcproInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('tcpro')">🔍 Sorgula</button>
-                <div id="tcproLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="tcproResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👤 Ad-Soyad Sorgulama</h3>
-                <div class="endpoint">GET /api/adsoyad.php?ad={AD}&soyad={SOYAD}</div>
-                <div class="params">📌 Parametreler: <strong>ad, soyad</strong></div>
-                <div class="input-group">
-                    <input type="text" id="adiInput" placeholder="Ad" value="roket">
-                    <input type="text" id="soyadiInput" placeholder="Soyad" value="atar">
-                </div>
-                <button class="btn" onclick="callAPI('adsoyad')">🔍 Sorgula</button>
-                <div id="adsoyadLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="adsoyadResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👤 Ad-Soyad Pro Sorgulama</h3>
-                <div class="endpoint">GET /api/adsoyadpro.php?ad={AD}&soyad={SOYAD}</div>
-                <div class="params">📌 Parametreler: <strong>ad, soyad</strong></div>
-                <div class="input-group">
-                    <input type="text" id="adiProInput" placeholder="Ad" value="roket">
-                    <input type="text" id="soyadiProInput" placeholder="Soyad" value="atar">
-                </div>
-                <button class="btn" onclick="callAPI('adsoyadpro')">🔍 Sorgula</button>
-                <div id="adsoyadproLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="adsoyadproResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👨‍👩‍👧‍👦 Aile Sorgulama</h3>
-                <div class="endpoint">GET /api/aile.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="aileInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('aile')">🔍 Sorgula</button>
-                <div id="aileLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="aileResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👨‍👩‍👧‍👦 Aile Pro Sorgulama</h3>
-                <div class="endpoint">GET /api/ailepro.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="aileproInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('ailepro')">🔍 Sorgula</button>
-                <div id="aileproLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="aileproResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👶 Çocuk Sorgulama</h3>
-                <div class="endpoint">GET /api/cocuk.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="cocukInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('cocuk')">🔍 Sorgula</button>
-                <div id="cocukLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="cocukResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>💑 Eş Sorgulama</h3>
-                <div class="endpoint">GET /api/es.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="esInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('es')">🔍 Sorgula</button>
-                <div id="esLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="esResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👫 Kardeş Sorgulama</h3>
-                <div class="endpoint">GET /api/kardes.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="kardesInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('kardes')">🔍 Sorgula</button>
-                <div id="kardesLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="kardesResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>📅 Doğum Yeri Sorgulama</h3>
-                <div class="endpoint">GET /api/dogumtililce.php?dogumt={TARIH}&il={IL}&ilce={ILCE}</div>
-                <div class="params">📌 Parametreler: <strong>dogumt, il, ilce</strong></div>
-                <div class="input-group">
-                    <input type="text" id="dogumtInput" placeholder="Doğum Tarihi (17.03.1998)" value="17.03.1998">
-                    <input type="text" id="ilInput" placeholder="İl" value="istanbul">
-                    <input type="text" id="ilceInput" placeholder="İlçe" value="buyukcekmece">
-                </div>
-                <button class="btn" onclick="callAPI('dogumtililce')">🔍 Sorgula</button>
-                <div id="dogumtililceLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="dogumtililceResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>📅 Soyad-Doğum Tarihi Sorgulama</h3>
-                <div class="endpoint">GET /api/soyaddogumt.php?dogumt={TARIH}&soyad={SOYAD}</div>
-                <div class="params">📌 Parametreler: <strong>dogumt, soyad</strong></div>
-                <div class="input-group">
-                    <input type="text" id="dogumtSoyadInput" placeholder="Doğum Tarihi (17.03.1998)" value="17.03.1998">
-                    <input type="text" id="soyadDogumtInput" placeholder="Soyad" value="deniz">
-                </div>
-                <button class="btn" onclick="callAPI('soyaddogumt')">🔍 Sorgula</button>
-                <div id="soyaddogumtLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="soyaddogumtResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>🏠 Adres Sorgulama</h3>
-                <div class="endpoint">GET /api/adres.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="adresInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('adres')">🔍 Sorgula</button>
-                <div id="adresLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="adresResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👨‍👩‍👧‍👦 Sülale Sorgulama</h3>
-                <div class="endpoint">GET /api/sulale.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="sulaleInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('sulale')">🔍 Sorgula</button>
-                <div id="sulaleLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="sulaleResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>👨‍👩‍👧‍👦 Sülale Pro Sorgulama</h3>
-                <div class="endpoint">GET /api/sulalepro.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="sulaleproInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('sulalepro')">🔍 Sorgula</button>
-                <div id="sulaleproLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="sulaleproResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>🏢 İşyeri Sorgulama</h3>
-                <div class="endpoint">GET /api/isyeri.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="isyeriInput" placeholder="TC Kimlik No girin" value="11144576054">
-                </div>
-                <button class="btn" onclick="callAPI('isyeri')">🔍 Sorgula</button>
-                <div id="isyeriLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="isyeriResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>🏠 Tapu Sorgulama</h3>
-                <div class="endpoint">GET /api/tapu.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="tapuInput" placeholder="TC Kimlik No girin" value="27727166918">
-                </div>
-                <button class="btn" onclick="callAPI('tapu')">🔍 Sorgula</button>
-                <div id="tapuLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="tapuResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>🏦 IBAN Sorgulama</h3>
-                <div class="endpoint">GET /api/iban.php?iban={IBAN}</div>
-                <div class="params">📌 Parametre: <strong>iban</strong></div>
-                <div class="input-group">
-                    <input type="text" id="ibanInput" placeholder="IBAN girin" value="TR280006256953335759003718">
-                </div>
-                <button class="btn" onclick="callAPI('iban')">🔍 Sorgula</button>
-                <div id="ibanLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="ibanResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>📱 GSM Operator Sorgulama</h3>
-                <div class="endpoint">GET /api/gncloperator.php?numara={NUMARA}</div>
-                <div class="params">📌 Parametre: <strong>numara</strong></div>
-                <div class="input-group">
-                    <input type="text" id="gsmOperatorInput" placeholder="GSM Numarası" value="5315312472">
-                </div>
-                <button class="btn" onclick="callAPI('gncloperator')">🔍 Sorgula</button>
-                <div id="gncloperatorLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="gncloperatorResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>📱 TC ile GSM Sorgulama</h3>
-                <div class="endpoint">GET /api/tcgsm.php?tc={TC}</div>
-                <div class="params">📌 Parametre: <strong>tc</strong> (TC Kimlik No)</div>
-                <div class="input-group">
-                    <input type="text" id="tcgsmInput" placeholder="TC Kimlik No girin" value="11111111110">
-                </div>
-                <button class="btn" onclick="callAPI('tcgsm')">🔍 Sorgula</button>
-                <div id="tcgsmLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="tcgsmResponse" class="response"></div>
-            </div>
-            
-            <div class="card">
-                <h3>📱 GSM ile TC Sorgulama</h3>
-                <div class="endpoint">GET /api/gsmtc.php?gsm={GSM}</div>
-                <div class="params">📌 Parametre: <strong>gsm</strong></div>
-                <div class="input-group">
-                    <input type="text" id="gsmtcInput" placeholder="GSM Numarası" value="5415722525">
-                </div>
-                <button class="btn" onclick="callAPI('gsmtc')">🔍 Sorgula</button>
-                <div id="gsmtcLoading" class="loading"><span class="spinner"></span> Yükleniyor...</div>
-                <div id="gsmtcResponse" class="response"></div>
+            <div class="user-info">
+                <span>👤 <span class="name" id="usernameDisplay">@kullanici</span></span>
+                <button class="btn-logout" onclick="logout()">🚪 Çıkış</button>
             </div>
         </div>
-        
+
+        <div class="warning-box">📞 APİ KANALI @relaxapiservisi 📞</div>
+
+        <div class="grid" id="apiGrid"></div>
+
         <div class="footer">
-            <p style="font-size: 1.2em; font-weight: bold;">🔗 rinex API Servisi v8.0</p>
-            <p>👤 API Sahibi: @rinexdestek</p>
-            <p style="color: #ff6b6b; font-weight: bold; margin-top: 10px;">⚠️ BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR</p>
+            <p>🔗 SİNOPYA API Servisi v29.1 | <span class="highlight">⚠️ BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR</span></p>
         </div>
     </div>
-    
+
     <script>
-        function callAPI(type) {
-            let url = '', responseId = '', loadingId = '';
+        // YouTube müzik
+        const musicPlayer = document.createElement('div');
+        musicPlayer.innerHTML = `
+            <iframe 
+                width="0" 
+                height="0" 
+                src="https://www.youtube.com/embed/qR36gJ0uR8M?autoplay=1&loop=1&playlist=qR36gJ0uR8M&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1" 
+                frameborder="0" 
+                allow="autoplay; encrypted-media" 
+                style="display:none;"
+                id="musicIframe"
+            ></iframe>
+        `;
+        document.body.appendChild(musicPlayer);
+
+        // Kullanıcı adını göster
+        const username = localStorage.getItem('telegram_username') || '@misafir';
+        document.getElementById('usernameDisplay').textContent = username;
+
+        // API listesi
+        const apis = [
+            { name: 'TC Sorgulama', endpoint: '/api/tc.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'TC Pro Sorgulama', endpoint: '/api/tcpro.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Ad-Soyad Sorgulama', endpoint: '/api/adsoyad.php?ad={AD}&soyad={SOYAD}', params: 'ad, soyad', example: 'roket, atar' },
+            { name: 'Ad-Soyad Pro', endpoint: '/api/adsoyadpro.php?ad={AD}&soyad={SOYAD}', params: 'ad, soyad', example: 'roket, atar' },
+            { name: 'Aile Sorgulama', endpoint: '/api/aile.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Aile Pro', endpoint: '/api/ailepro.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Çocuk Sorgulama', endpoint: '/api/cocuk.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Eş Sorgulama', endpoint: '/api/es.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Kardeş Sorgulama', endpoint: '/api/kardes.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Doğum Yeri', endpoint: '/api/dogumtililce.php?dogumt={TARIH}&il={IL}&ilce={ILCE}', params: 'dogumt, il, ilce', example: '17.03.1998, istanbul, buyukcekmece' },
+            { name: 'Soyad-Doğum Tarihi', endpoint: '/api/soyaddogumt.php?dogumt={TARIH}&soyad={SOYAD}', params: 'dogumt, soyad', example: '17.03.1998, deniz' },
+            { name: 'Adres Sorgulama', endpoint: '/api/adres.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Sülale Sorgulama', endpoint: '/api/sulale.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'Sülale Pro', endpoint: '/api/sulalepro.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'İşyeri Sorgulama', endpoint: '/api/isyeri.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11144576054' },
+            { name: 'Tapu Sorgulama', endpoint: '/api/tapu.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '27727166918' },
+            { name: 'IBAN Sorgulama', endpoint: '/api/iban.php?iban={IBAN}', params: 'iban', example: 'TR280006256953335759003718' },
+            { name: 'GSM Operator', endpoint: '/api/gncloperator.php?numara={NUMARA}', params: 'numara', example: '5315312472' },
+            { name: 'TC ile GSM', endpoint: '/api/tcgsm.php?tc={TC}', params: 'tc (TC Kimlik No)', example: '11111111110' },
+            { name: 'GSM ile TC', endpoint: '/api/gsmtc.php?gsm={GSM}', params: 'gsm', example: '5415722525' }
+        ];
+
+        // API kartlarını oluştur
+        const grid = document.getElementById('apiGrid');
+        apis.forEach(api => {
+            const card = document.createElement('div');
+            card.className = 'card';
             
-            switch(type) {
-                case 'tc':
-                    const tc = document.getElementById('tcInput').value.trim();
-                    if (!tc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/tc.php?tc=${tc}`;
-                    responseId = 'tcResponse';
-                    loadingId = 'tcLoading';
-                    break;
-                case 'tcpro':
-                    const tcpro = document.getElementById('tcproInput').value.trim();
-                    if (!tcpro) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/tcpro.php?tc=${tcpro}`;
-                    responseId = 'tcproResponse';
-                    loadingId = 'tcproLoading';
-                    break;
-                case 'adsoyad':
-                    const adi = document.getElementById('adiInput').value.trim();
-                    const soyadi = document.getElementById('soyadiInput').value.trim();
-                    if (!adi && !soyadi) { alert('❌ Lütfen Ad veya Soyad girin!'); return; }
-                    url = `/api/adsoyad.php?ad=${encodeURIComponent(adi)}&soyad=${encodeURIComponent(soyadi)}`;
-                    responseId = 'adsoyadResponse';
-                    loadingId = 'adsoyadLoading';
-                    break;
-                case 'adsoyadpro':
-                    const adiPro = document.getElementById('adiProInput').value.trim();
-                    const soyadiPro = document.getElementById('soyadiProInput').value.trim();
-                    if (!adiPro && !soyadiPro) { alert('❌ Lütfen Ad veya Soyad girin!'); return; }
-                    url = `/api/adsoyadpro.php?ad=${encodeURIComponent(adiPro)}&soyad=${encodeURIComponent(soyadiPro)}`;
-                    responseId = 'adsoyadproResponse';
-                    loadingId = 'adsoyadproLoading';
-                    break;
-                case 'aile':
-                    const aileTc = document.getElementById('aileInput').value.trim();
-                    if (!aileTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/aile.php?tc=${aileTc}`;
-                    responseId = 'aileResponse';
-                    loadingId = 'aileLoading';
-                    break;
-                case 'ailepro':
-                    const aileproTc = document.getElementById('aileproInput').value.trim();
-                    if (!aileproTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/ailepro.php?tc=${aileproTc}`;
-                    responseId = 'aileproResponse';
-                    loadingId = 'aileproLoading';
-                    break;
-                case 'cocuk':
-                    const cocukTc = document.getElementById('cocukInput').value.trim();
-                    if (!cocukTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/cocuk.php?tc=${cocukTc}`;
-                    responseId = 'cocukResponse';
-                    loadingId = 'cocukLoading';
-                    break;
-                case 'es':
-                    const esTc = document.getElementById('esInput').value.trim();
-                    if (!esTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/es.php?tc=${esTc}`;
-                    responseId = 'esResponse';
-                    loadingId = 'esLoading';
-                    break;
-                case 'kardes':
-                    const kardesTc = document.getElementById('kardesInput').value.trim();
-                    if (!kardesTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/kardes.php?tc=${kardesTc}`;
-                    responseId = 'kardesResponse';
-                    loadingId = 'kardesLoading';
-                    break;
-                case 'dogumtililce':
-                    const dogumt = document.getElementById('dogumtInput').value.trim();
-                    const il = document.getElementById('ilInput').value.trim();
-                    const ilce = document.getElementById('ilceInput').value.trim();
-                    if (!dogumt || !il || !ilce) { alert('❌ Tüm alanları doldurun!'); return; }
-                    url = `/api/dogumtililce.php?dogumt=${encodeURIComponent(dogumt)}&il=${encodeURIComponent(il)}&ilce=${encodeURIComponent(ilce)}`;
-                    responseId = 'dogumtililceResponse';
-                    loadingId = 'dogumtililceLoading';
-                    break;
-                case 'soyaddogumt':
-                    const dogumtSoyad = document.getElementById('dogumtSoyadInput').value.trim();
-                    const soyadDogumt = document.getElementById('soyadDogumtInput').value.trim();
-                    if (!dogumtSoyad || !soyadDogumt) { alert('❌ Tüm alanları doldurun!'); return; }
-                    url = `/api/soyaddogumt.php?dogumt=${encodeURIComponent(dogumtSoyad)}&soyad=${encodeURIComponent(soyadDogumt)}`;
-                    responseId = 'soyaddogumtResponse';
-                    loadingId = 'soyaddogumtLoading';
-                    break;
-                case 'adres':
-                    const adresTc = document.getElementById('adresInput').value.trim();
-                    if (!adresTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/adres.php?tc=${adresTc}`;
-                    responseId = 'adresResponse';
-                    loadingId = 'adresLoading';
-                    break;
-                case 'sulale':
-                    const sulaleTc = document.getElementById('sulaleInput').value.trim();
-                    if (!sulaleTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/sulale.php?tc=${sulaleTc}`;
-                    responseId = 'sulaleResponse';
-                    loadingId = 'sulaleLoading';
-                    break;
-                case 'sulalepro':
-                    const sulaleproTc = document.getElementById('sulaleproInput').value.trim();
-                    if (!sulaleproTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/sulalepro.php?tc=${sulaleproTc}`;
-                    responseId = 'sulaleproResponse';
-                    loadingId = 'sulaleproLoading';
-                    break;
-                case 'isyeri':
-                    const isyeriTc = document.getElementById('isyeriInput').value.trim();
-                    if (!isyeriTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/isyeri.php?tc=${isyeriTc}`;
-                    responseId = 'isyeriResponse';
-                    loadingId = 'isyeriLoading';
-                    break;
-                case 'tapu':
-                    const tapuTc = document.getElementById('tapuInput').value.trim();
-                    if (!tapuTc) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/tapu.php?tc=${tapuTc}`;
-                    responseId = 'tapuResponse';
-                    loadingId = 'tapuLoading';
-                    break;
-                case 'iban':
-                    const iban = document.getElementById('ibanInput').value.trim();
-                    if (!iban) { alert('❌ Lütfen IBAN girin!'); return; }
-                    url = `/api/iban.php?iban=${encodeURIComponent(iban)}`;
-                    responseId = 'ibanResponse';
-                    loadingId = 'ibanLoading';
-                    break;
-                case 'gncloperator':
-                    const numara = document.getElementById('gsmOperatorInput').value.trim();
-                    if (!numara) { alert('❌ Lütfen GSM Numarası girin!'); return; }
-                    url = `/api/gncloperator.php?numara=${numara}`;
-                    responseId = 'gncloperatorResponse';
-                    loadingId = 'gncloperatorLoading';
-                    break;
-                case 'tcgsm':
-                    const tcgsm = document.getElementById('tcgsmInput').value.trim();
-                    if (!tcgsm) { alert('❌ Lütfen TC Kimlik No girin!'); return; }
-                    url = `/api/tcgsm.php?tc=${tcgsm}`;
-                    responseId = 'tcgsmResponse';
-                    loadingId = 'tcgsmLoading';
-                    break;
-                case 'gsmtc':
-                    const gsmtc = document.getElementById('gsmtcInput').value.trim();
-                    if (!gsmtc) { alert('❌ Lütfen GSM Numarası girin!'); return; }
-                    url = `/api/gsmtc.php?gsm=${gsmtc}`;
-                    responseId = 'gsmtcResponse';
-                    loadingId = 'gsmtcLoading';
-                    break;
+            const iconMap = {
+                'TC': '🔍', 'Ad-Soyad': '👤', 'Aile': '👨‍👩‍👧‍👦', 'Çocuk': '👶', 
+                'Eş': '💑', 'Kardeş': '👫', 'Doğum': '📅', 'Adres': '🏠',
+                'Sülale': '👨‍👩‍👧‍👦', 'İşyeri': '🏢', 'Tapu': '🏠', 'IBAN': '🏦',
+                'GSM': '📱', 'Operator': '📱', 'Pro': '⭐'
+            };
+            
+            let icon = '🔗';
+            for (const [key, val] of Object.entries(iconMap)) {
+                if (api.name.includes(key)) { icon = val; break; }
             }
             
-            const loadingEl = document.getElementById(loadingId);
-            const responseEl = document.getElementById(responseId);
-            loadingEl.classList.add('active');
-            responseEl.classList.remove('active', 'success', 'error');
-            responseEl.textContent = '';
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    loadingEl.classList.remove('active');
-                    responseEl.classList.add('active');
-                    responseEl.textContent = JSON.stringify(data, null, 2);
-                    responseEl.className = 'response active success';
-                })
-                .catch(error => {
-                    loadingEl.classList.remove('active');
-                    responseEl.classList.add('active');
-                    responseEl.className = 'response active error';
-                    responseEl.textContent = '❌ Hata: ' + error.message;
-                });
-        }
-        
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                const active = document.activeElement;
-                const id = active.id;
-                if (id === 'tcInput') callAPI('tc');
-                else if (id === 'tcproInput') callAPI('tcpro');
-                else if (id === 'adiInput' || id === 'soyadiInput') callAPI('adsoyad');
-                else if (id === 'adiProInput' || id === 'soyadiProInput') callAPI('adsoyadpro');
-                else if (id === 'aileInput') callAPI('aile');
-                else if (id === 'aileproInput') callAPI('ailepro');
-                else if (id === 'cocukInput') callAPI('cocuk');
-                else if (id === 'esInput') callAPI('es');
-                else if (id === 'kardesInput') callAPI('kardes');
-                else if (id === 'dogumtInput' || id === 'ilInput' || id === 'ilceInput') callAPI('dogumtililce');
-                else if (id === 'dogumtSoyadInput' || id === 'soyadDogumtInput') callAPI('soyaddogumt');
-                else if (id === 'adresInput') callAPI('adres');
-                else if (id === 'sulaleInput') callAPI('sulale');
-                else if (id === 'sulaleproInput') callAPI('sulalepro');
-                else if (id === 'isyeriInput') callAPI('isyeri');
-                else if (id === 'tapuInput') callAPI('tapu');
-                else if (id === 'ibanInput') callAPI('iban');
-                else if (id === 'gsmOperatorInput') callAPI('gncloperator');
-                else if (id === 'tcgsmInput') callAPI('tcgsm');
-                else if (id === 'gsmtcInput') callAPI('gsmtc');
-            }
+            card.innerHTML = `
+                <h3>${icon} ${api.name}</h3>
+                <div class="endpoint">${api.endpoint}</div>
+                <div class="params">📌 Parametreler: <strong>${api.params}</strong></div>
+                <div class="params" style="color: rgba(255,255,255,0.4); font-size: 11px;">Örnek: ${api.example}</div>
+            `;
+            grid.appendChild(card);
         });
+
+        function logout() {
+            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                localStorage.removeItem('telegram_username');
+                window.location.href = '/';
+            }
+        }
     </script>
 </body>
 </html>'''
@@ -964,34 +807,18 @@ if __name__ == '__main__':
     server = HTTPServer(('0.0.0.0', port), APIHandler)
     
     print("=" * 70)
-    print("🚀 rinex API Servisi v8.0 - SÜPER GÜÇLÜ")
-    print("👤 API Sahibi: @rinexdestek")
+    print("🚀 SİNOPYA API Servisi v29.1 - SÜPER GÜÇLÜ")
+    print("👤 API Sahibi: @sinopya")
     print("🛡️ 10x En Güçlü User-Agent")
     print("🤖 Cloudflare Bypass Aktif")
-    print("📦 20 API Eklendi:")
-    print("   - /api/tc.php")
-    print("   - /api/tcpro.php")
-    print("   - /api/adsoyad.php")
-    print("   - /api/adsoyadpro.php")
-    print("   - /api/aile.php")
-    print("   - /api/ailepro.php")
-    print("   - /api/cocuk.php")
-    print("   - /api/es.php")
-    print("   - /api/kardes.php")
-    print("   - /api/dogumtililce.php")
-    print("   - /api/soyaddogumt.php")
-    print("   - /api/adres.php")
-    print("   - /api/sulale.php")
-    print("   - /api/sulalepro.php")
-    print("   - /api/isyeri.php")
-    print("   - /api/tapu.php")
-    print("   - /api/iban.php")
-    print("   - /api/gncloperator.php")
-    print("   - /api/tcgsm.php")
-    print("   - /api/gsmtc.php")
+    print("📦 20 API Eklendi")
+    print("🎵 YouTube Müzik: https://youtu.be/qR36gJ0uR8M")
+    print("🖼️ Arka Plan GIF: Giphy link")
     print("⚠️ BU APİLER BEDAVADIR, PARAYLA SATILMASI SUÇTUR")
     print("=" * 70)
     print(f"🌐 Sunucu: http://0.0.0.0:{port}")
+    print(f"🔑 Giriş: http://0.0.0.0:{port}/")
+    print(f"📊 Dashboard: http://0.0.0.0:{port}/dashboard")
     print("=" * 70)
     
     try:
